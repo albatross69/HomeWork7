@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>UserWindow</title>
+</head>
+<body>
+<ul>
+    <li><a href="user/userlist">Список пользователей</a></li>
+    <li><a href="user/filelist">Список файлов</a></li>
+    <li><a href="user/quit?exit=1">Выход</a></li>
+</ul>
+<form name="addImg" method="post" enctype="multipart/form-data" action="/user/load">
+    <p><label for="photo">Добавить файл<br/>
+        <input type="file" name="photo"></label></p>
+    <p><input type= "submit" value="Добавить"></p>
+</form>
+<p><a href="/">На главную</a></p>
+</body>
+</html>
