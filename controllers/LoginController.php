@@ -1,8 +1,8 @@
 <?php
-require_once ROOT.'/models/UserModel.php';
+require_once ROOT.'/models/User.php';
 class LoginController
 {
-    public $model;
+    public $user;
 
     public function actionIndex()
     {
@@ -11,11 +11,11 @@ class LoginController
 
     public function actionAuthorize()
     {
-        $this->model = new UserModel();
+        $this->user = new User();
         $username = trim(strip_tags($_POST['username']));
         $password = trim(strip_tags($_POST['password']));
 
-        if ($this->model->is_password_right($username, $password))
+        if ($this->user->is_password_right($username, $password))
         {
             session_start();
             $_SESSION['login'] = $username;

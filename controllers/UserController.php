@@ -1,9 +1,12 @@
 <?php
-    require_once ROOT.'/models/UserModel.php';
+    require_once ROOT.'/models/User.php';
+    require_once ROOT.'/models/Userfile.php';
     require_once ROOT.'/components/View.php';
+    require_once ROOT.'/components/Image.php';
 class UserController
 {
-    public $model;
+    public $user;
+    public $userfile;
     public $view;
 
     public function actionIndex()
@@ -31,8 +34,8 @@ class UserController
 
             echo 'Список пользователей' . "<br/>";
 
-            $this->model = new UserModel();
-            $data = $this->model->getUsers();
+            $this->user = new User();
+            $data = $this->user->getUsers();
 
             for ($i = 0; $i < count($data); $i++) {
                 if ($data[$i]['age'] >= 18) {
@@ -56,9 +59,10 @@ class UserController
         }
         else
         {
-            $this->model = new UserModel();
+            $this->userfile = new Userfile();
             $pictname = $_FILES['photo']['name'];
             $picttype = $_FILES['photo']['type'];
+            $path_to_image = $_FILES['photo']['tmp_name'];
             $file = './photos/'.basename($pictname);
 
             if (preg_match('/jpg|jpeg/', $pictname) or preg_match('/gif/', $pictname) or
@@ -67,9 +71,10 @@ class UserController
                 if (preg_match('/jpg|jpeg/', $picttype) or preg_match('/gif/', $picttype) or
                     preg_match('/png/', $picttype))
                 {
-                    if ($this->model->addImg($_SESSION['login'], $pictname))
+                    if ($this->userfile->addImg($_SESSION['login'], $pictname))
                     {
-                        copy($_FILES['photo']['tmp_name'], $file);
+                        $img = new Image();
+                        $img->resize($path_to_image, $pictname);
                         $host = 'http://'.$_SERVER['HTTP_HOST'].'/';
                         header('Location:'.$host.'user');
                     }
@@ -101,9 +106,8 @@ class UserController
         else
         {
             echo "Список файлов, загруженных вами: <br/>";
-
-            $this->model = new UserModel();
-            $data = $this->model->getFiles($_SESSION['login']);
+            $this->userfile = new Userfile();
+            $data = $this->userfile->getFiles($_SESSION['login']);
 
             $this->view = new View();
 

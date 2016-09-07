@@ -1,11 +1,15 @@
 <?php
-require_once ROOT.'/models/UserModel.php';
+require_once ROOT.'/models/User.php';
+require_once ROOT.'/models/Userfile.php';
 require_once ROOT.'/vendor/autoload.php';
 require_once ROOT.'/components/View.php';
+require_once ROOT.'/components/Mailer.php';
+require_once ROOT.'/components/Image.php';
 
 class CheckinController
 {
-    public $model;
+    public $user;
+    public $userfile;
     public $view;
 
     public function actionIndex()
@@ -17,7 +21,8 @@ class CheckinController
     public function actionReg()
     {
         //подключаемся к модели
-        $this->model = new UserModel();
+        $this->user = new User();
+        $this->userfile = new Userfile();
 
         //получаем данные из формы
         $username = trim(strip_tags($_POST['username']));
@@ -27,6 +32,7 @@ class CheckinController
         $about = trim(strip_tags($_POST['about']));
         $photoname = $_FILES['photo']['name'];
         $phototype = $_FILES['photo']['type'];
+        $path_to_image = $_FILES['photo']['tmp_name'];
         $file = './photos/'.basename($photoname);
 
         //этот массив используется во взаимодействии с бд
@@ -36,7 +42,8 @@ class CheckinController
             'name' => $name,
             'age' => $age,
             'about' => $about,
-            'Img' => $photoname
+            'Img' => $photoname,
+            'ip' => $_SERVER['REMOTE_ADDR']
         );
 
         //проверяем, заполнены ли поля?
@@ -48,7 +55,7 @@ class CheckinController
 
         //капча
         $url = 'https://www.google.com/recaptcha/api/siteverify';
-        $key = '6Leu9ygTAAAAAJgTB7CIW4vu_APZGD7v1cwbLR-N';
+        $key = '6Ld9YSkTAAAAAOt0jR0V6vOHX526Jh16YYHsN4oV';
 
         $response = file_get_contents($url."?secret=".$key."&response=".$_POST['g-recaptcha-response']);
 
@@ -59,10 +66,31 @@ class CheckinController
             exit;
         }
 
+        //Валидация
+        $gump = new GUMP();
+        $gump->validation_rules(array(
+                'name' => 'required|min_len,5',
+                'about' => 'required|min_len,50',
+                'ip' => 'valid_ip',
+                'age' => 'numeric|min_numeric,10|max_numeric,100'
+            )
+        );
+
+        $validated_data = $gump->run($input);
+
+        if($validated_data === false)
+        {
+            echo $gump->get_readable_errors(true);
+            echo "<br/><a href='/checkin'>Попробуйте еще раз!</a>";
+            exit;
+        }
+
+
         //имя пользователя
-        if ($this->model->is_username_exist($username))
+        if ($this->user->is_username_exist($username))
         {
             echo 'Пользователь с таким именем уже существует'."<a href='/checkin'>Попробуйте еще раз!</a>";
+            exit;
         }
 
         //безопасность
@@ -73,36 +101,24 @@ class CheckinController
                 preg_match('/png/', $phototype))
             {
                 //если пользователь добавлен в бд
-                if ($this->model->addUser($input) && $this->model->addtoUserfiles($input))
+                if ($this->user->addUser($input) && $this->userfile->addtoUserfiles($input))
                 {
                     //отправка письма
-                    $mail = new PHPMailer();
-
-                    $mail->isSMTP();
-                    $mail->Host = 'smtp.yandex.ru';
-                    $mail->SMTPAuth = true;
-                    $mail->Username = 'doe.senior';
-                    $mail->Password = 'qwerty123456';
-                    $mail->SMTPSecure = 'ssl';
-                    $mail->Port = 465;
-
-                    $mail->setFrom('doe.senior@yandex.ru', 'dz06.loftschool');
-                    $mail->addAddress('ar.abelyan@yandex.ru');
-                    $mail->isHTML(true);
-                    $mail->Subject = 'Новый пользователь';
-                    $mail->Body    = "Пользователь <b>$username</b> зарегистрирован!";
-                    $mail->AltBody = 'This is the body in plain text for non-HTML mail clients';
-
-
-                    if(!$mail->send()) {
-                        echo 'Message could not be sent.';
-                        echo 'Mailer Error: ' . $mail->ErrorInfo;
-                    } else {
-                        copy($_FILES['photo']['tmp_name'], $file);
+                    $mail = new Mailer();
+                    if ($mail->reg_letter(true, 'Новый пользователь', "Пользователь <b>$username</b> зарегистрирован!"))
+                    {
+                        //Изменяем размер картинки
+                        $img = new Image();
+                        $img->resize($path_to_image, $photoname);
                         session_start();
                         $_SESSION['login'] = $username;
                         $host = 'http://'.$_SERVER['HTTP_HOST'].'/';
                         header('Location:'.$host.'user');
+                    }
+                    else
+                    {
+                        echo 'Что-то пошло не так';
+                        exit;
                     }
                 }
                 else
